@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>蒸汽大陆：命运罗盘</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <style>
+        /* --- 1. 全局与材质设定 --- */
+        :root {
+            --brass-light: #ffd700;
+            --brass-med: #d4af37;
+            --brass-dark: #8b5a2b;
+            --iron-dark: #1a1209;
+            --iron-light: #30251c;
+            --aether-glow: #00ffcc;
+            --tf-glow: #ff6600;
+            --jp-glow: #aa88ff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Courier New', Courier, monospace; 
+            color: #e0e0e0; 
+            background-color: var(--iron-dark);
+            overflow: hidden; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+            background-image: radial-gradient(circle at center, #000 0%, #1a1209 100%);
+        }
+
+        /* 动态背景层 */
+        #bgLayer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            transition: background-image 0.8s ease-in-out;
+            z-index: -2;
+            filter: brightness(0.6) contrast(1.2); 
+        }
+        
+        /* --- 2. 片头动画层 --- */
+        #introLayer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #1a1209, #000);
+            z-index: 2000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; padding: 20px; cursor: pointer;
+        }
+
+        .intro-text {
+            font-size: 28px; color: var(--brass-med);
+            text-shadow: 1px 1px 0px var(--brass-light);
+            opacity: 0; transform: translateY(20px);
+            transition: opacity 1s, transform 1s;
+            line-height: 1.8; letter-spacing: 3px;
+            font-family: 'Georgia', serif;
+            max-width: 800px;
+        }
+        
+        .intro-brand {
+            font-size: 45px; color: var(--brass-light);
+            border-bottom: 4px double var(--brass-dark); padding-bottom: 15px; margin-bottom: 25px; letter-spacing: 10px;
+            text-transform: uppercase; text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+            font-family: 'Georgia', serif;
+        }
+
+        .skip-hint {
+            position: absolute; bottom: 40px; font-size: 14px; color: var(--brass-dark);
+            animation: blink 2s infinite;
+            background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 4px;
+            border: 1px solid var(--brass-dark);
+            box-shadow: inset 0 0 5px #000;
+        }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* --- 3. 启动封面 --- */
+        #startScreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 5, 0, 0.95);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 1000; opacity: 0; transition: opacity 1s;
+            border: 15px solid var(--iron-dark); 
+            box-shadow: 0 0 0 10px var(--brass-dark), 0 0 0 15px #000, inset 0 0 50px #000;
+        }
+        
+        #startTitle {
+            font-size: 100px; color: var(--brass-light); font-weight: bold; margin-bottom: 15px; 
+            text-shadow: 0 4px 0 var(--brass-dark), 0 8px 0 #000, 0 0 30px rgba(255, 215, 0, 0.6);
+            letter-spacing: 20px; font-family: 'Georgia', serif; text-align: center;
+        }
+
+        #startSubtitle {
+            font-size: 28px; color: var(--brass-med); margin-bottom: 70px;
+            letter-spacing: 8px; text-align: center;
+            border-top: 3px solid var(--brass-dark); border-bottom: 3px solid var(--brass-dark);
+            padding: 12px 60px; background: rgba(0,0,0,0.5);
+        }
+        
+        .mech-btn {
+            padding: 20px 60px; font-size: 24px; color: var(--iron-dark);
+            background: linear-gradient(to bottom, var(--brass-light), var(--brass-med));
+            border: 4px solid var(--brass-dark);
+            box-shadow: 0 6px 0 var(--brass-dark), 0 0 20px rgba(255, 215, 0, 0.3), inset 0 0 5px rgba(255,255,255,0.5);
+            border-radius: 4px; cursor: pointer; font-weight: bold; transition: all 0.15s ease-out;
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+
+        /* --- 4. 主游戏容器 --- */
+        #gameBox {
+            width: 950px; max-width: 92%; height: 88vh;
+            display: none; flex-direction: column;
+            background: rgba(26, 20, 15, 0.9);
+            border: 10px solid var(--iron-dark); 
+            box-shadow: 0 0 0 12px var(--brass-dark), 0 0 0 14px #000, 0 0 40px rgba(0,0,0,0.9) inset, 0 0 20px var(--brass-dark);
+            padding: 45px; position: relative; 
+            overflow-y: auto; 
+        }
+        
+        h1 {
+            color: var(--brass-light); font-size: 36px; margin: 0 0 15px 0; 
+            letter-spacing: 6px; 
+            text-shadow: 1px 1px 0 var(--brass-dark), 2px 2px 0 #000, 0 0 5px rgba(255, 215, 0, 0.5);
+            border-bottom: 3px double var(--brass-dark); padding-bottom: 10px;
+            font-family: 'Georgia', serif;
+        }
+
+        /* --- 故事内容区 --- */
+        #gameContent { 
+            flex-grow: 1; display: flex; flex-direction: column; 
+            justify-content: flex-start; padding-top: 10px; 
+            padding-right: 20px; 
+        }
+        
+        #chapterTitle { 
+            font-size: 18px; color: var(--iron-dark); font-weight: bold; margin-bottom: 15px; 
+            display: inline-block; 
+            background: linear-gradient(to top, var(--brass-med), var(--brass-light));
+            padding: 10px 25px; border: 2px solid var(--brass-dark); border-radius: 4px; 
+            align-self: flex-start; box-shadow: 2px 2px 5px rgba(0,0,0,0.6);
+            letter-spacing: 3px; 
+        }
+        
+        #storyText {
+            font-size: 22px; line-height: 1.6; margin-bottom: 25px; 
+            color: #f5f5dc; 
+            text-shadow: 1px 1px 2px #000;
+            background: var(--iron-light); 
+            padding: 25px; border-radius: 4px;
+            border: 4px solid var(--brass-dark); 
+        }
+
+        /* --- 选项按钮 --- */
+        .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        .choice-btn {
+            background: linear-gradient(180deg, #383025, #1a1209);
+            border: 3px solid var(--brass-dark);
+            color: var(--brass-med); 
+            padding: 20px 20px 20px 45px; 
+            font-size: 20px; 
+            cursor: pointer; text-align: left; transition: all 0.15s ease-out;
+            border-radius: 2px; position: relative; line-height: 1.4;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 5px 0 var(--iron-dark); 
+        }
+        .choice-btn::before { 
+            content: ''; position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            width: 12px; height: 12px; border-radius: 50%;
+            border: 2px solid var(--brass-dark);
+            background: radial-gradient(circle, var(--aether-glow) 30%, #004433 100%); 
+            box-shadow: 0 0 5px var(--aether-glow);
+        }
+        .choice-btn:hover {
+            background: #3e2f22; border-color: var(--brass-light); color: var(--brass-light);
+            transform: translateY(-4px); box-shadow: 0 0 15px rgba(212, 175, 55, 0.4), 0 8px 0 var(--iron-dark); 
+        }
+
+        /* 返回按钮样式 */
+        .back-btn {
+            grid-column: 1 / -1; /* 跨越整行 */
+            text-align: center;
+            padding: 15px;
+            font-size: 18px;
+            background: transparent;
+            border: 2px dashed var(--brass-dark);
+            color: #888;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 4px;
+        }
+        .back-btn:hover {
+            border-color: var(--brass-med);
+            color: var(--brass-light);
+            background: rgba(212, 175, 55, 0.1);
+        }
+
+        /* --- 结果页 --- */
+        #resultScreen { 
+            display: none; text-align: center; animation: fadeIn 1s; padding-bottom: 20px; 
+            grid-template-columns: 35% 65%; grid-template-rows: auto auto 1fr auto; gap: 30px;
+            padding: 0;
+        }
+        
+        .result-header { grid-column: 1 / 3; text-align: center; }
+        .role-title {
+            font-size: 70px; color: var(--aether-glow); text-shadow: 0 0 15px var(--aether-glow);
+            margin: 20px 0 10px 0; font-weight: bold; font-family: 'Georgia', serif;
+            border-bottom: 3px solid var(--aether-glow); display: inline-block; letter-spacing: 5px;
+        }
+
+        /* 身份铭牌 (图片区域) */
+        #imageBox {
+            grid-column: 1 / 2; width: 100%; aspect-ratio: 3 / 4; 
+            background: var(--iron-light); border: 4px solid var(--brass-med);
+            box-shadow: 0 0 15px rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+        #professionImage {
+            width: 100%; height: 100%;
+            background-size: cover; background-position: top center; background-repeat: no-repeat;
+            color: var(--brass-dark); font-size: 16px; text-align: center; padding-top: 50%;
+        }
+
+        /* 属性仪表盘 (右侧属性) */
+        .stats-container {
+            grid-column: 2 / 3; display: grid; grid-template-columns: 1fr; 
+            gap: 12px; background: rgba(20, 15, 10, 0.9); 
+            padding: 25px; border-radius: 4px; border: 4px solid var(--brass-dark); 
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+            align-content: start;
+        }
+        .stat-label { font-size: 16px; color: var(--brass-light); margin-bottom: 4px; display: flex; justify-content: space-between; font-weight: bold;}
+        .stat-track { 
+            height: 14px; background: #111; border-radius: 7px; 
+            overflow: hidden; border: 2px solid var(--brass-dark); box-shadow: inset 0 0 5px #000;
+        }
+        .stat-fill { 
+            height: 100%; width: 0%; 
+            background: linear-gradient(to right, var(--brass-light), var(--brass-dark)); 
+            transition: width 1s ease 0.5s; 
+            box-shadow: 0 0 5px var(--brass-med);
+        }
+        /* 不同的能量颜色 */
+        .fill-tf { background: linear-gradient(to right, var(--tf-glow), #aa4400); box-shadow: 0 0 5px var(--tf-glow); }
+        .fill-sn { background: linear-gradient(to right, var(--aether-glow), #008866); box-shadow: 0 0 5px var(--aether-glow); }
+        .fill-jp { background: linear-gradient(to right, var(--jp-glow), #6600ff); box-shadow: 0 0 5px var(--jp-glow); }
+
+        .analysis-box { 
+            grid-column: 1 / 3; text-align: left; background: rgba(30, 25, 20, 0.9); 
+            padding: 30px; border: 4px solid var(--brass-dark); 
+            border-radius: 4px;
+            box-shadow: inset 0 0 10px #000;
+        }
+        .highlight { 
+            color: var(--brass-light); font-weight: bold; font-size: 22px; 
+            display: block; margin-bottom: 12px; text-transform: uppercase; 
+            letter-spacing: 4px; 
+            border-bottom: 2px dashed var(--brass-dark); padding-bottom: 8px;
+        }
+
+        .restart-btn { grid-column: 1 / 3; width: 300px; margin: 30px auto 0 auto; }
+
+        /* --- 音乐开关 --- */
+        #musicBtn {
+            position: fixed; top: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%;
+            background: rgba(0,0,0,0.8); border: 4px solid var(--brass-med); color: var(--brass-light);
+            display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 100;
+            font-size: 28px; opacity: 0; transition: all 0.5s;
+        }
+
+        @media screen and (max-width: 768px) {
+             #gameBox { overflow-y: auto; }
+             .choice-grid { grid-template-columns: 1fr; }
+             .choice-btn { font-size: 16px; padding: 15px 15px 15px 40px; }
+             #resultScreen { grid-template-columns: 1fr; display: flex; flex-direction: column; }
+             .stats-container { grid-column: auto; }
+             #imageBox { grid-column: auto; width: 60%; margin: 0 auto; aspect-ratio: 1/1; }
+             .result-header, .analysis-box, .restart-btn { grid-column: auto; }
+             .role-title { font-size: 40px; }
+        }
+    </style>
+</head>
+<body>
+
+<audio id="bgm" loop><source src="music.mp3" type="audio/mpeg"></audio>
+<div id="bgLayer"></div>
+
+<div id="introLayer" onclick="skipIntro()">
+    <div id="introContent" class="intro-text"></div>
+    <div class="skip-hint">[ 点击屏幕 · 跳过动画 ]</div>
+</div>
+
+<div id="startScreen">
+    <div id="startTitle">蒸汽大陆</div>
+    <div id="startSubtitle">命运罗盘 · 人格核心测试</div>
+    <button class="mech-btn start-btn" onclick="startGame()">启动神经连接</button>
+</div>
+
+<div id="musicBtn" onclick="toggleMusic()">♪</div>
+
+<div id="gameBox">
+    
+    <h1>命运罗盘控制台</h1>
+    <div class="progress-container"><div id="progressFill"></div></div>
+
+    <div id="gameContent">
+        <div id="chapterTitle">第一章</div>
+        <div id="storyText"></div>
+        <div class="choice-grid" id="choiceArea"></div>
+    </div>
+
+    <div id="resultScreen">
+        <div class="result-header">
+            <div class="role-title" id="resTitle"></div>
+            <div class="role-quote" id="resQuote"></div>
+        </div>
+        
+        <div id="imageBox">
+            <div id="professionImage">职业图片加载区 (请将 INTJ.png 等放入 images 文件夹)</div>
+        </div>
+
+        <div class="stats-container">
+            <div title="能量获取方式">
+                <div class="stat-label"><span>对外辐射力</span><span id="val-E">0%</span></div>
+                <div class="stat-track"><div class="stat-fill" id="bar-E"></div></div>
+            </div>
+            <div title="能量获取方式">
+                <div class="stat-label"><span>内在沉思度</span><span id="val-I">0%</span></div>
+                <div class="stat-track"><div class="stat-fill" id="bar-I"></div></div>
+            </div>
+            <div title="决策核心">
+                <div class="stat-label"><span>逻辑运算核</span><span id="val-T">0%</span></div>
+                <div class="stat-track"><div class="stat-fill fill-tf" id="bar-T"></div></div>
+            </div>
+            <div title="决策核心">
+                <div class="stat-label"><span>人道共情度</span><span id="val-F">0%</span></div>
+                <div class="stat-track"><div class="stat-fill fill-tf" id="bar-F"></div></div>
+            </div>
+            <div title="认知方式">
+                <div class="stat-label"><span>实践经验</span><span id="val-S">0%</span></div>
+                <div class="stat-track"><div class="stat-fill fill-sn" id="bar-S"></div></div>
+            </div>
+            <div title="认知方式">
+                <div class="stat-label"><span>以太感知力</span><span id="val-N">0%</span></div>
+                <div class="stat-track"><div class="stat-fill fill-sn" id="bar-N"></div></div>
+            </div>
+            <div title="生活倾向">
+                <div class="stat-label"><span>结构决断值</span><span id="val-J">0%</span></div>
+                <div class="stat-track"><div class="stat-fill fill-jp" id="bar-J"></div></div>
+            </div>
+            <div title="生活倾向">
+                <div class="stat-label"><span>环境适应度</span><span id="val-P">0%</span></div>
+                <div class="stat-track"><div class="stat-fill fill-jp" id="bar-P"></div></div>
+            </div>
+        </div>
+
+        <div class="analysis-box">
+            <span class="highlight">深度解析</span>
+            <p id="resDesc" style="line-height: 1.8; margin-bottom: 25px; font-size: 18px;"></p>
+            <span class="highlight">给新成员的建议</span>
+            <p id="resAdvice" style="line-height: 1.8; font-size: 18px;"></p>
+        </div>
+
+        <button class="mech-btn restart-btn" style="grid-column: 1 / 3; margin-top: 40px;" onclick="location.reload()">重置罗盘</button>
+    </div>
+</div>
+
+<script>
+    // 配置
+    const bgImages = {
+        1: 'bg1.jpg', 2: 'bg2.jpg', 3: 'bg3.jpg', 4: 'bg4.jpg',
+        5: 'bg5.jpg', 6: 'bg6.jpg', 7: 'bg7.jpg', 8: 'bg8.jpg',
+        9: 'bg9.jpg', 10: 'bg10.jpg', 11: 'bg11.jpg', 12: 'bg12.jpg',
+        result: 'result_bg.jpg'
+    };
+
+    // 图片映射
+    const professionImageMap = {
+        "INTJ": 'INTJ.png', "INTP": 'INTP.png', "ENTJ": 'ENTJ.png', "ENTP": 'ENTP.png',
+        "INFJ": 'INFJ.png', "INFP": 'INFP.png', "ENFJ": 'ENFJ.png', "ENFP": 'ENFP.png',
+        "ISTJ": 'ISTJ.png', "ISFJ": 'ISFJ.png', "ESTJ": 'ESTJ.png', "ESFJ": 'ESFJ.png',
+        "ISTP": 'ISTP.png', "ISFP": 'ISFP.png', "ESTP": 'ESTP.png', "ESFP": 'ESFP.png'
+    };
+
+    // 片头
+    const introSequences = [
+        { html: "<span class='intro-brand'>熠先生的蒸汽大陆</span><br>荣誉出品" },
+        { text: "欢迎来到 阿卡迪亚" },
+        { text: "这是一个由黄铜、蒸汽与以太构建的空中奇迹。" },
+        { text: "即将来到这里开启新生活的你……" },
+        { text: "是成为掌控雷电的法师，还是翱翔天际的船长？" },
+        { text: "在这片大陆，一切皆有可能。" },
+        { text: "现在，请跟随命运罗盘的指引……" }
+    ];
+
+    let introIndex = 0, introTimer = null;
+
+    window.onload = function() { playIntro(); };
+
+    function playIntro() {
+        const content = document.getElementById('introContent');
+        if (introIndex >= introSequences.length) { finishIntro(); return; }
+        content.style.opacity = '0'; content.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            const item = introSequences[introIndex];
+            content.innerHTML = item.html || item.text;
+            content.style.opacity = '1'; content.style.transform = 'translateY(0)';
+            introIndex++; introTimer = setTimeout(playIntro, 3000); 
+        }, 1000);
+    }
+
+    function skipIntro() { if(introTimer) clearTimeout(introTimer); finishIntro(); }
+
+    function finishIntro() {
+        const introLayer = document.getElementById('introLayer');
+        const startScreen = document.getElementById('startScreen');
+        introLayer.style.opacity = '0';
+        setTimeout(() => {
+            introLayer.style.display = 'none';
+            startScreen.style.display = 'flex';
+            setTimeout(() => startScreen.style.opacity = '1', 50);
+        }, 800);
+    }
+
+    function startGame() {
+        const startScreen = document.getElementById('startScreen');
+        const gameBox = document.getElementById('gameBox');
+        const bgm = document.getElementById('bgm');
+        const musicBtn = document.getElementById('musicBtn');
+        bgm.play().catch(e => console.log("Music autoplay blocked"));
+        startScreen.style.opacity = '0';
+        setTimeout(() => {
+            startScreen.style.display = 'none';
+            gameBox.style.display = 'flex';
+            musicBtn.style.opacity = '1';
+            renderQuestion(); 
+        }, 800);
+    }
+
+    // 剧情与分数
+    const questions = [
+        { chapter: "第一章：迷雾港口", text: "蒸汽列车停靠在阿卡迪亚悬空站台。迎接你的是满天飞艇和喧嚣的人潮。你的第一反应是？", choices: [{text:"兴奋地挤进人群，试图立刻融入这里的热闹。", scores:{E:2}}, {text:"在边缘找个角落，先观察一下这个城市的运作。", scores:{I:2}}, {text:"向列车员打听最近的酒馆，我想先认识点朋友。", scores:{E:1}}, {text:"拉低帽檐快速通过，我不想引起注意。", scores:{I:1}}] },
+        { chapter: "第二章：突发灾难", text: "远处的“永恒钟塔”突然发生爆炸！巨大齿轮滚落。作为离现场最近的人，你下意识做了什么？", choices: [{text:"大声指挥疏散，建立临时秩序防止踩踏。", scores:{J:2}}, {text:"直接冲向废墟救人，见机行事！", scores:{P:2}}, {text:"快速评估爆炸范围，寻找安全路线。", scores:{J:1}}, {text:"趁乱观察爆炸源，这看起来不像意外。", scores:{P:1}}] },
+        { chapter: "第三章：废墟之下", text: "你在废墟中发现了一个发着蓝光的奇怪装置，似乎是爆炸源头。卫兵还没到，你会？", choices: [{text:"检查它的铭文和构造，试图判断它的物理来历。", scores:{S:2}}, {text:"我有强烈的不祥预感，这东西像是个魔法信标。", scores:{N:2}}, {text:"尝试拆除动力源，物理断电最安全。", scores:{S:1}}, {text:"联想到最近的教派传闻，这可能是某种仪式。", scores:{N:1}}] },
+        { chapter: "第四章：暗巷情报", text: "为了查清真相，你在下城区找到一位狡猾的情报贩子。你打算怎么套话？", choices: [{text:"拍出一袋金币。“这是买消息的钱，也是买你闭嘴的钱。”", scores:{T:2}}, {text:"请他喝一杯，倾听烦恼，建立信任后再切入。", scores:{F:2}}, {text:"指出他的危险处境，理性分析合作的必要性。", scores:{T:1}}, {text:"表现出同情，承诺事成之后保护他的安全。", scores:{F:1}}] },
+        { chapter: "第五章：远征启航", text: "线索指向云海深处。你登上一艘探险飞艇。在分配房间时，你倾向于？", choices: [{text:"公共休息室，那里能听到各种水手的故事。", scores:{E:2}}, {text:"单人禁闭室，小但安静，可以思考。", scores:{I:2}}, {text:"去甲板帮忙，一起工作让我感觉更好。", scores:{E:1}}, {text:"躲在货舱整理装备，没人打扰就行。", scores:{I:1}}] },
+        { chapter: "第六章：迷失云海", text: "飞艇驶入以太风暴，仪表盘失灵。船长问你意见，你觉得该怎么导航？", choices: [{text:"依靠传统六分仪和风向，相信物理法则。", scores:{S:2}}, {text:"闭眼感受以太流动，直觉会指引方向。", scores:{N:2}}, {text:"参考旧海图地标，按历史航线修正。", scores:{S:1}}, {text:"这是探索新航道的机会，大胆穿越风暴眼！", scores:{N:1}}] },
+        { chapter: "第七章：空贼突袭", text: "警报！空贼驾驶滑翔翼来袭。情况危急，你决定？", choices: [{text:"坚守岗位，按演习方案死守动力室。", scores:{J:2}}, {text:"跳上备用滑翔翼，冲出去跟他们在空中狗斗！", scores:{P:2}}, {text:"组织防线，分配弹药，确保各司其职。", scores:{J:1}}, {text:"看准时机射击敌方旗舰油箱，制造混乱。", scores:{P:1}}] },
+        { chapter: "第八章：古代遗迹", text: "迫降在空岛，面前是一座神殿大门，刻着：“只有牺牲才能带来永恒”。你会？", choices: [{text:"分析谜题逻辑，寻找机关触发机制。", scores:{T:2}}, {text:"感受这句话的悲伤，也许需要情感共鸣。", scores:{F:2}}, {text:"故弄玄虚，直接用炸药爆破最快。", scores:{T:1}}, {text:"思考伦理含义，若无正当理由不愿强闯。", scores:{F:1}}] },
+        { chapter: "第九章：核心守卫", text: "神殿内，一台巨大的自律人偶挡住去路。它看起来没有敌意，但也不让路。你打算？", choices: [{text:"观察关节磨损和管线，寻找物理弱点。", scores:{S:2}}, {text:"试图沟通，我觉得它拥有某种“灵魂”。。", scores:{N:2}}, {text:"敲击墙壁发出特定频率，测试传感器反应。", scores:{S:1}}, {text:"想象创造者的意图，也许在等一个口令。", scores:{N:1}}] },
+        { chapter: "第十章：篝火夜谈", text: "夜深了，大家在神殿大厅露营。围坐在篝火旁，此时的你？", choices: [{text:"为大家即兴表演一段，活跃低落的气氛。", scores:{E:2}}, {text:"静静看火，思考一路的意义，享受独处。", scores:{I:2}}, {text:"和队长讨论明天的计划，确保万无一失。", scores:{E:1}}, {text:"写日记，记录今天的见闻。", scores:{I:1}}] },
+        { chapter: "第十一章：终极抉择", text: "找到了核心。关闭它能救城市，但会毁灭这座空岛的生态。不关闭，城市面临威胁。你？", choices: [{text:"必须关闭。城市几十万人命比这无人岛重要。数量决定取舍。", scores:{T:2}}, {text:"不能毁灭这里！生命平等，必须找两全其美的办法，哪怕冒险。", scores:{F:2}}, {text:"执行任务是首要职责，既然来了就要完成。", scores:{T:1}}, {text:"听从内心的声音，如果不这么做我会后悔。", scores:{F:1}}] },
+        { chapter: "第十二章：尾声", text: "尘埃落定，你带着荣耀回到阿卡迪亚。对于未来，你的打算是？", choices: [{text:"开一家工坊，制定长远计划，过稳定生活。", scores:{J:2}}, {text:"钱？花光它！买最好的酒，明天去哪明天再说！", scores:{P:2}}, {text:"整理这次经验，为下一个大目标做准备。", scores:{J:1}}, {text:"世界很大，我要去流浪，看风把我带向何方。", scores:{P:1}}] }
+    ];
+
+    // 结果 (引号修正)
+    const results = {
+        "INTJ": { title: "虚空要塞指挥官", quote: "“星辰的轨迹，皆在我的沙盘推演之中。”", desc: "你是“宇宙要塞的最高指挥官”。你独自站在巨大的全息星图前，以冰冷的逻辑和宏大的战略眼光俯瞰着整个蒸汽大陆的防线。你不喜欢社交，因为大多数人跟不上你的思维速度。你致力于构建一个绝对安全、高效的防御体系，虽然常被视为冷酷孤傲，但你是这片大陆最坚实的“智慧壁垒”。", advice: "指挥官，你的战略完美无缺，但要塞内部的人心也是防御体系的一部分。偶尔走出指挥室，让士兵们看到你人性的一面，这不会削弱你的威严，反而会增加他们的忠诚。" },
+        "INTP": { title: "旧日低语者", quote: "“理智的尽头，才是真理的开始。”", desc: "你是一位带有“克苏鲁色彩的巫师”。你对正常的机械科技不感兴趣，反而沉迷于古老、禁忌甚至有些危险的知识。你常常在深夜研究那些让人掉san值的古籍，探寻以太背后的不可名状之物。你是“疯狂与天才的结合体”，在常人无法理解的逻辑维度中独自狂欢。", advice: "探索未知的勇气令人钦佩，但请注意你的“理智值”（Sanity）。不要让自己完全与现实脱节，找一个能把你拉回现实的锚点——比如一位还得起房租的室友，或者一只普通的机械猫。" },
+        "ENTJ": { title: "帝国空艇总督", quote: "“整齐的制服，是征服世界的第一步。”", desc: "你身着笔挺的“皇家军装”，胸前挂满勋章。你是“绝对权力和秩序”的象征。你不仅指挥着庞大的皇家飞艇舰队，更掌控着庞大的资源网络。你的意志就是法律，你的目标是星辰大海。你无法容忍无能和混乱，你的存在本身就是一种强大的压迫感和凝聚力。", advice: "总督阁下，虽然铁腕手段高效，但高压蒸汽容易导致管道破裂。学会适当放权，并倾听下属的建议，不仅能减轻你的负担，还能让你的帝国运转得更长久。" },
+        "ENTP": { title: "糖果工厂炼金术士", quote: "“谁说魔法不能是甜的？尝尝这个会爆炸的跳跳糖！”", desc: "你是在“饼干工厂里施法的魔法师”。你讨厌枯燥的流水线，总是用天马行空的想象力把普通的食材变成魔法道具。你会发明“吃了能飞的棉花糖”或者“能预知天气的果冻”。你是“混乱善良的发明家”，热衷于挑战传统，把无聊的工业区变成你的奇幻乐园。", advice: "你的创意无穷无尽，但要注意副作用（比如吃了会变色的饼干）。在量产你的疯狂发明之前，最好先进行充分的安全测试，否则工厂的投诉信箱就要爆了。" },
+        "INFJ": { title: "深巷酒馆占卜师", quote: "“你的眼神告诉我，你背负着一段未完的旅程。”", desc: "你隐居在“神秘酒馆的角落”。你不需要水晶球，因为你拥有洞察人心的双眼。无数冒险者来到这里，只为寻求你的指引。你不仅是秘术师，更是“灵魂的疗愈者”。你默默背负着许多人的秘密和痛苦，用你的直觉为迷途者点亮微光。", advice: "作为命运的旁观者，你往往吸纳了过多的他人情绪。请记住，你也是需要被治愈的。在关店之后，给自己留一杯不加预言的纯酒，享受属于你自己的宁静时刻。" },
+        "INFP": { title: "梦境漫游者·爱丽丝", quote: "“如果不去想象六件不可能的事，早晨就不算开始。”", desc: "你就如同“漫游仙境的爱丽丝”，在这个充满钢铁和煤烟的世界里，你依然活在自己的童话中。你拥有透过现象看本质的纯真之眼，能看到机械巨兽温柔的一面。你是“异世界的观察者”，你的善良和想象力是连接现实与幻想的兔子洞。", advice: "这个世界有时会像红皇后的法庭一样荒谬和残酷。保持你的纯真，但也需要学会分辨哪怕是仙境中也存在的危险。不要迷失在兔子洞里太久，记得回家的路。" },
+        "ENFJ": { title: "维多利亚沙龙女爵", quote: "“在这把扇子后面，掌握着半个帝国的秘密。”", desc: "你是一位“优雅华丽的法国贵妇”风格的人物。你举办的沙龙是阿卡迪亚的社交中心，无论是将军还是工匠，都以收到你的邀请函为荣。你编织着庞大的人际网络，用“魅力和情商”影响着局势。你是人群中的光芒，也是推动社会变革的幕后推手。", advice: "你在舞台上光芒万丈，总是照顾着所有客人的情绪。但脱下华服后，别忘了卸下防备，面对真实的自己。并不是所有人都需要你来拯救或取悦。" },
+        "ENFP": { title: "忘忧稻草人", quote: "“我有许多点子！虽然...呃...我刚才想说什么来着？”", desc: "你是“童话里走出的天真稻草人”。你戴着那顶神奇的帽子，虽然副作用是偶尔会变得有点“傻气”或健忘，但你因此获得了“绝对的快乐和无忧无虑”。你的热情具有传染力，你的思维跳跃得像受惊的兔子，你是团队中最棒的开心果和创意源泉。", advice: "你的快乐是珍贵的宝藏，但偶尔摘下帽子，面对一下现实的烦恼也是成长的必要部分。即使没有魔法帽子，你也拥有让周围人微笑的超能力。" },
+        "ISTJ": { title: "万事屋首席文书", quote: "“这是第402号表格，请签字，别把墨水滴在上面。”", desc: "你是“冷静客观的接待人员”。无论外面的世界多么混乱（海盗袭击、魔法爆炸），你坐在柜台后岿然不动。你维护着万事屋的“秩序与流程”，所有疯狂的任务在你手中都会变成整齐的文档。你是混乱世界中“最可靠的锚点”。", advice: "你的严谨无可挑剔，但有时候客户需要的不仅仅是表格，还有一点点人情味。试着在规章制度之外，给那些焦头烂额的冒险者一点额外的通融或微笑。" },
+        "ISFJ": { title: "皇家御用信使", quote: "“无论是战火还是风暴，信件必达。”", desc: "你是一位“古罗马风格的信使”，却穿梭在蒸汽都市。你拥有钢铁般的责任感，无论路途多么艰险，你承诺的信件绝不丢失。你是“连接世界的纽带”，人们信任你胜过信任银行。你默默守护着无数人的秘密和思念。", advice: "你总是为了使命奔波，很少停下来看看沿途的风景。请记住，信使也是需要休息的。有时候，你也应该为你自己写一封信，寄给未来的自己。" },
+        "ESTJ": { title: "荒野赏金猎人", quote: "“正义可能迟到，但我的子弹从不缺席。”", desc: "你是一位“西部牛仔风格的正义使者”。在法度废弛的边境地带，你就是行走的法律。你雷厉风行，崇尚效率和规则。你腰间的左轮手枪不仅是武器，更是“秩序的象征”。你带领团队追捕罪犯，维护着这片荒原的底线。", advice: "你的原则性让你受人尊敬，但有时过于黑白分明会让你显得不近人情。荒野的生存法则不仅仅是强硬，有时候，一点点圆滑和宽容能让你获得意想不到的盟友。" },
+        "ESFJ": { title: "迷雾森林看守人", quote: "“每一棵树都在呼吸，请放轻脚步。”", desc: "你是一位“温和的森林法师”。你居住在蒸汽城市边缘的自然飞地，致力于保护生态平衡。你像照顾家人一样照顾着动植物和迷路的旅人。你是“和谐的缔造者”，用自然的魔法治愈被工业污染的土地和人心。", advice: "你总是为他人和环境操心，甚至会为了保护大家而牺牲自己。请划定你的界限，不要让过度的关怀变成你的负担。你的能量也是有限的自然资源。" },
+        "ISTP": { title: "废土人造人·零号", quote: "“情感模块已离线，正在执行生存协议。”", desc: "你是一位“荒漠风格的人造人”。你话不多，拥有极高的生存技能和机械天赋。你冷静、客观，甚至显得有些冷漠。在这个严酷的世界里，你就像一把精密的瑞士军刀，“高效、致命且实用”。你用逻辑代码处理危机，而不是惊慌。", advice: "虽然关闭情感模块能提高生存率，但偶尔开启它，体验一下“人类”的喜怒哀乐，也是一种独特的系统升级。不要完全变成一台机器，那会错过很多风景。" },
+        "ISFP": { title: "觉醒天赋的小女巫", quote: "“我感觉到了...风中有些不一样的东西。”", desc: "你是一个“坚信自己有魔法天赋的小女巫”。虽然你可能还不能熟练掌控力量，但你拥有敏锐的艺术感知力和独特的个人风格。你随性而为，拒绝被定义。你正在经历一场“自我发现的旅程”，用你的直觉和微小的魔法点亮生活。", advice: "你的天赋是真实的，不要因为别人的质疑而动摇。但魔法也需要练习和控制。试着专注一点，将你散乱的灵感汇聚成真正的力量。相信你自己，你就是奇迹。" },
+        "ESTP": { title: "暴走公路骑士", quote: "“路在脚下，油门踩死，别回头！”", desc: "你是一位“身着皮衣的公路旅行家”。你骑着改装的蒸汽摩托，穿梭在大陆的各个角落。你追求肾上腺素，活在当下，享受速度与激情。你是“行动派的化身”，哪里有麻烦（或者乐子），哪里就有你的引擎轰鸣声。", advice: "你的生活令人羡慕，但这种“在路上”的状态也意味着缺乏根基。偶尔停下车，检修一下引擎，规划一下路线。鲁莽是你的魅力，但谨慎能让你骑得更远。" },
+        "ESFP": { title: "蒸汽列车怪盗", quote: "“女士们先生们，演出开始了！”", desc: "你并非普通的强盗，而是“传说中的北美火车大盗（姐弟）”。你将抢劫变成了一场华丽的表演。你热爱聚光灯，享受在危险边缘起舞的快感。你性格豪爽，及时行乐，是“混乱中最大的明星”。对你来说，赏金的数额不如通缉令上的照片帅不帅重要。", advice: "你的生活像烟花一样绚烂，但烟花易冷。在追求刺激的同时，也要考虑一下退路。或许利用你的名气做点“侠盗”的好事，能让你成为真正的传奇。" }
+    };
+
+    // 游戏逻辑
+    let scores = { E:0, I:0, S:0, N:0, T:0, F:0, J:0, P:0 };
+    let scoreHistory = []; // 历史记录栈
+    let currentStep = 0;
+    const bgLayer = document.getElementById('bgLayer');
+    const bgm = document.getElementById('bgm');
+
+    function toggleMusic() {
+        if (bgm.paused) { bgm.play(); document.getElementById('musicBtn').style.opacity = '1'; }
+        else { bgm.pause(); document.getElementById('musicBtn').style.opacity = '0.5'; }
+    }
+
+    function updateBackground() {
+        const img = bgImages[currentStep+1] || bgImages[1];
+        if (img) bgLayer.style.backgroundImage = `url('images/${img}')`;
+    }
+
+    function renderQuestion() {
+        if (currentStep >= questions.length) { showResult(); return; }
+        updateBackground();
+        const q = questions[currentStep];
+        document.getElementById('chapterTitle').innerText = q.chapter;
+        document.getElementById('storyText').innerText = q.text;
+        document.getElementById('progressFill').style.width = `${(currentStep/questions.length)*100}%`;
+        
+        const grid = document.getElementById('choiceArea');
+        grid.innerHTML = '';
+
+        // 渲染选项
+        q.choices.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn mech-btn';
+            btn.innerHTML = c.text;
+            btn.onclick = () => { 
+                handleChoice(c.scores);
+            };
+            grid.appendChild(btn);
+        });
+
+        // 渲染返回按钮 (如果不是第一题)
+        if (currentStep > 0) {
+            const backBtn = document.createElement('button');
+            backBtn.className = 'back-btn';
+            backBtn.innerText = "↩ 返回上一章";
+            backBtn.onclick = goBack;
+            grid.appendChild(backBtn);
+        }
+    }
+
+    function handleChoice(points) {
+        // 加分
+        for (let k in points) scores[k] += points[k];
+        // 记录历史
+        scoreHistory.push(points);
+        // 前进
+        currentStep++;
+        renderQuestion();
+    }
+
+    function goBack() {
+        if (currentStep > 0) {
+            currentStep--;
+            // 取出上一次的得分并减去
+            let lastPoints = scoreHistory.pop();
+            for (let k in lastPoints) scores[k] -= lastPoints[k];
+            renderQuestion();
+        }
+    }
+
+    function calculateMBTI(scores) {
+        let mbti = "";
+        mbti += scores.E >= scores.I ? "E" : "I"; 
+        mbti += scores.S >= scores.N ? "S" : "N";
+        mbti += scores.T >= scores.F ? "T" : "F";
+        mbti += scores.J >= scores.P ? "J" : "P";
+        if (mbti.length < 4) return "INTJ"; 
+        return mbti;
+    }
+
+    function showResult() {
+        const resultScreen = document.getElementById('resultScreen');
+        document.getElementById('gameContent').style.display = 'none';
+        document.querySelector('.progress-container').style.display = 'none';
+        resultScreen.style.display = 'grid'; 
+        
+        if(bgImages.result) bgLayer.style.backgroundImage = `url('images/${bgImages.result}')`;
+
+        let mbti = calculateMBTI(scores);
+        const res = results[mbti];
+        
+        const imgBox = document.getElementById('professionImage');
+        const imageUrl = `images/${professionImageMap[mbti]}`;
+        imgBox.style.backgroundImage = `url('${imageUrl}')`;
+        imgBox.innerText = '';
+        
+        document.getElementById('resTitle').innerText = res.title;
+        document.getElementById('resQuote').innerText = res.quote;
+        document.getElementById('resDesc').innerText = res.desc;
+        document.getElementById('resAdvice').innerText = res.advice;
+        
+        renderBar('E', scores.E, 4); renderBar('I', scores.I, 4); 
+        renderBar('S', scores.S, 4); renderBar('N', scores.N, 4); 
+        renderBar('T', scores.T, 4); renderBar('F', scores.F, 4);
+        renderBar('J', scores.J, 4); renderBar('P', scores.P, 4);
+    }
+
+    function renderBar(key, val, max) {
+        const percent = Math.min(100, (val / max) * 100);
+        document.getElementById(`bar-${key}`).style.width = `${percent}%`;
+        document.getElementById(`val-${key}`).innerText = `${Math.round(percent)}%`;
+    }
+
+    // 增加重置时的历史清空
+    window.restartGame = function() {
+        location.reload();
+    };
+</script>
+</body>
+</html>
